@@ -1,0 +1,12 @@
+{
+	"type": "code",
+	"name": "__Template__",
+	"modid": "__template__",
+	"version": "1.0.0",
+	"description" : "",
+	"website": "https://github.com/Nulliel-VintageStory/__Template__",
+	"authors": [ "nulliel" ],
+	"dependencies": {
+		"game": "1.18.5"
+	}
+}

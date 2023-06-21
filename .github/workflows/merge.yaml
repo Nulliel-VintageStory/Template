@@ -1,0 +1,65 @@
+name: Main Merged
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        dotnet-version: [6.0.x]
+        vintagestory-version: [1.18.5]
+    steps:
+      - uses: GoogleCloudPlatform/release-please-action@v3
+        id: release
+        with:
+          release-type: simple
+
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+        if: ${{ steps.release.outputs.release_created }}
+
+      - name: Update modinfo
+        run: |
+          cat resources/modinfo.json | jq '.version = "${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}.${{ steps.release.outputs.patch }}"' | tee resources/modinfo.json
+        if: ${{ steps.release.outputs.release_created }}
+
+      - name: Configure VintageStory Libs
+        run: |
+          cd "${GITHUB_WORKSPACE}/lib"
+          wget https://cdn.vintagestory.at/gamefiles/stable/vs_archive_${{ matrix.vintagestory-version }}.tar.gz
+          tar -xvf vs_archive_${{ matrix.vintagestory-version }}.tar.gz
+          rm vs_archive_${{ matrix.vintagestory-version }}.tar.gz
+        if: ${{ steps.release.outputs.release_created }}
+
+      - name: Setup .NET Core SDK ${{ matrix.dotnet-version }}
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: ${{ matrix.dotnet-version }}
+        if: ${{ steps.release.outputs.release_created }}
+
+      - name: Restore dependencies
+        run: dotnet restore
+        if: ${{ steps.release.outputs.release_created }}
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+        if: ${{ steps.release.outputs.release_created }}
+
+      - name: Rename artifact
+        run: mv ./bin/__Template__.zip ./bin/__Template__-${{ matrix.vintagestory-version }}-${{ steps.release.outputs.tag_name }}.zip
+        if: ${{ steps.release.outputs.release_created }}
+
+      - name: Upload release artifact
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload ${{ steps.release.outputs.tag_name }} ./bin/__Template__-${{ matrix.vintagestory-version }}-${{ steps.release.outputs.tag_name }}.zip
+        if: ${{ steps.release.outputs.release_created }}
